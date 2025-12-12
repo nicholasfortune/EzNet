@@ -7,7 +7,7 @@ EzNet is a **CPU-based neural network library** written entirely in C++, with th
 You can use EzNet through the library for full programmatic control, or through the CLI for quick experiments or to create prebuilt networks to embed in your projects.
 
 # License
-This software is licensed under the [GNU GPL v3](LICENSE) license. You **are allowed to**:
+This software is licensed under the [GNU GPL v3](LICENSE) license. **You are allowed to**:
 - Use the software **for any purpose**.
 - Copy and share the software **freely**.
 - **Modify the software** and run your modified version.
