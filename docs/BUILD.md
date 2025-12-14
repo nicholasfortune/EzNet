@@ -27,12 +27,13 @@ You can compile EzNet into a static library and link it to your own project.
 
 
 ### 2. Turn it into a static library:
-`ar rcs eznet.a eznet.o`
+`ar rcs bin/eznet.a bin/eznet.o`
 
 You will now have the **EzNet** `.a` library file.
 
 
 ### 3. Link it with your own project:
-*stable*: `g++ path/to/your/project.cpp path/to/eznet.a -o bin/eznet.exe`
+*stable*: `g++ path/to/your/project.cpp path/to/eznet.a -o path/to/your/project.exe`
 
-*optimized*: `g++ path/to/your/project.cpp path/to/eznet.a -o bin/eznet.exe -O3 -march=native -mtune=native -flto -DNDEBUG`
+*optimized*: `g++ path/to/your/project.cpp path/to/eznet.a -o path/to/your/project.exe -O3 -march=native -mtune=native -flto -DNDEBUG`
+
