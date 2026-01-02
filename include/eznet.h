@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <fstream>
 
 namespace NeuralNetwork {
     struct file_metadata {
@@ -51,6 +52,21 @@ namespace NeuralNetwork {
     struct y {
         std::vector<std::vector<float>> layers;
     };
+    
+
+
+
+
+    void insert_bytes(char* location, std::fstream& file, std::streampos position, size_t old_data_size, const char* data, size_t data_size);
+    NeuralNetwork::file_metadata read_metadata(std::fstream& file);
+    std::vector<float> read_block(char* location, uint32_t block);
+    void write_block(char* location, uint32_t block, std::vector<float> values);
+    void new_bin(char* location);
+    void write_config(char* location, std::fstream& file, std::vector<uint32_t> config_data);
+
+
+
+
 
     //Creates an initialized, untrained neural network with the amount of layers being the amount of items in an array, and each item's value being the amount of neurons in that layer and the first layer being excluded as the input size.
     NeuralNetwork::network create_network(std::vector<uint32_t> layers);

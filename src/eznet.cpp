@@ -25,11 +25,12 @@
         -------------------------------------------------------------------
         --          version             uint32_t                    version # of the file
         --          blocks              uint32_t                    counts the number of blocks (not including blocks 0-2)
-        --          block sizes         multiple uint32_t's         shows the size of all the blocks from block 3 and on in bytes.
-        --          config size         uint32_t                    shows the size of all the configuration data.
-        |             config data 1
-        |             config data 2
-        |             config data 3
+        --          block sizes         multiple uint32_t's         counts the number of all neural network weight/bias blocks.
+        --          config size         uint32_t                    counts the number of all the blocks of configuration data. (**MUST** BE uint32_t)
+        |             config data 1     uint32_t
+        |             config data 1     uint32_t
+        |             config data 2     uint32_t
+        |             config data 3     uint32_t
         |           ...
         0           1 x bias layer      1 float 32 for each bias    holds the biases, there can be as many of these as needed
         1           1 x weight layer    1 float 32 for each weight  holds the weights, there can be as many of these as needed
@@ -53,221 +54,6 @@
 #include <random>
 #include <cmath>
 
-// Binary functions
-    void insert_bytes(char* location, std::fstream& file, std::streampos position, size_t old_data_size, const char* data, size_t data_size) {
-        if (!file.is_open()) {
-            std::cerr << "insert_bytes: file not open\n";
-            return;
-        }
-
-        // Move to end to get file size
-        file.seekg(0, std::ios::end);
-        std::streampos sp = file.tellg();
-        if (sp == -1) {
-            std::cerr << "insert_bytes: tellg failed\n";
-            return;
-        }
-
-        size_t file_size = static_cast<size_t>(sp);
-
-        if (position < 0 || static_cast<size_t>(position) + old_data_size > file_size) {
-            std::cerr << "insert_bytes: position + old_data_size exceeds file size\n";
-            return;
-        }
-
-        // Calculate tail size
-        size_t tail_size = file_size - (static_cast<size_t>(position) + old_data_size);
-
-        // Read tail if there is any
-        std::vector<char> tail;
-        if (tail_size > 0) {
-            tail.resize(tail_size);
-            file.seekg(position + static_cast<std::streamoff>(old_data_size), std::ios::beg);
-            file.read(tail.data(), static_cast<std::streamsize>(tail_size));
-            if (!file) {
-                std::cerr << "insert_bytes: read tail failed\n";
-                return;
-            }
-        }
-
-        // Write new data
-        file.seekp(position, std::ios::beg);
-        if (data_size > 0) {
-            file.write(data, static_cast<std::streamsize>(data_size));
-            if (!file) {
-                std::cerr << "insert_bytes: write data failed\n";
-                return;
-            }
-        }
-
-        // Write tail
-        if (tail_size > 0) {
-            file.write(tail.data(), static_cast<std::streamsize>(tail_size));
-            if (!file) {
-                std::cerr << "insert_bytes: write tail failed\n";
-                return;
-            }
-        }
-
-        // Resize file if new file is smaller or larger
-        size_t new_file_size = file_size - old_data_size + data_size;
-        if (new_file_size != file_size) {
-            file.flush();
-            std::error_code ec;
-            std::filesystem::resize_file(location, new_file_size, ec);
-            if (ec) {
-                std::cerr << "insert_bytes: resize_file failed: " << ec.message() << '\n';
-                return;
-            }
-        }
-
-        file.clear(); // Reset any flags
-        return;
-    }
-    NeuralNetwork::file_metadata read_metadata(std::fstream& file) {
-        if (!file.is_open()) {std::cerr << "read_metadata: failed to open provided file.\n";return {};}
-
-        file.seekg(0, std::ios::beg);
-
-        // Version
-        uint32_t version;
-        file.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (!file) {std::cerr << "read_metadata: error getting version metadata.\n";return NeuralNetwork::file_metadata{};}
-
-        // Blocks
-        uint32_t blocks;
-        file.read(reinterpret_cast<char*>(&blocks), sizeof(blocks));
-        if (!file) {std::cerr << "read_metadata: error getting blocks metadata.\n";return NeuralNetwork::file_metadata{};}
-
-        // Block sizes
-        std::vector<uint32_t> block_sizes(blocks);
-        file.read(reinterpret_cast<char*>(block_sizes.data()), blocks * sizeof(uint32_t));
-        if (!file) {std::cerr << "read_metadata: error getting block sizes metadata.\n";return NeuralNetwork::file_metadata{};}
-
-        // Config size
-        uint32_t config_size;
-        file.read(reinterpret_cast<char*>(&config_size), sizeof(config_size));
-        if (!file) {std::cerr << "read_metadata: error getting config size metadata.\n";return NeuralNetwork::file_metadata{};}
-
-        // Config data
-        std::vector<uint32_t> config_data(blocks);
-        file.read(reinterpret_cast<char*>(config_data.data()), config_size * sizeof(uint32_t));
-        if (!file) {std::cerr << "read_metadata: error getting config data metadata.\n";return NeuralNetwork::file_metadata{};}
-
-        return NeuralNetwork::file_metadata{version, blocks, block_sizes};
-    }
-    void write_config(char* location, std::fstream& file, uint32_t config_size, std::vector<uint32_t> config_data) {
-        if (!file.is_open()) {std::cerr << "write_config: failed to open provided file.\n";return;}
-
-        NeuralNetwork::file_metadata metadata = read_metadata(file);
-
-        insert_bytes(location, file, );
-
-        file.seekg(0, std::ios::beg);
-    }
-    std::vector<float> read_block(char* location, uint32_t block) {
-        // Open file
-        std::fstream file(location, std::ios::in | std::ios::binary);
-        if (!file.is_open()) {std::cerr << "read_block: failed to open \"" << location << "\".\n";return {};}
-            
-        NeuralNetwork::file_metadata file_metadata = read_metadata(file);
-        uint32_t version = file_metadata.version;
-        uint32_t blocks = file_metadata.blocks;
-        std::vector<uint32_t> block_sizes = file_metadata.block_sizes;
-        uint32_t config_size = file_metadata.config_size;
-
-        // Find the block the user wants
-            if (block >= blocks) {std::cerr << "Block # requested is invalid.\n";return {};}
-
-            // Sum the size of all blocks before the one the user wants
-            size_t sum = sizeof(uint32_t) * (3 + blocks + config_size); // Size of metadata
-            for (size_t i = 0; i < block; i++) { sum += block_sizes[i]; }
-
-            // Read the block
-            size_t bytes = static_cast<size_t>(block_sizes[block]);
-            if (bytes % sizeof(float) != 0) {std::cerr << "read_block: block size not aligned with type\n";return {};}
-
-            std::vector<float> wanted_block(bytes / sizeof(float));
-
-            file.seekg(sum, std::ios::beg);
-            if (!file) {std::cerr << "read_block: seekg failed for block " << block << "\n";return {};}
-
-            file.read(reinterpret_cast<char*>(wanted_block.data()), bytes);
-            if (!file) {std::cerr << "read_block: error reading block " << block << "\n";return {};}
-
-        return wanted_block;
-    }
-    void write_block(char* location, uint32_t block, std::vector<float> values) {
-        // Open file
-        std::fstream file(location, std::ios::in | std::ios::out | std::ios::binary);
-        if (!file.is_open()) {std::cerr << "write_block: failed to open \"" << location << "\".\n";return;}
-            
-        NeuralNetwork::file_metadata file_metadata = read_metadata(file);
-        uint32_t version = file_metadata.version;
-        uint32_t blocks = file_metadata.blocks;
-        std::vector<uint32_t> block_sizes = file_metadata.block_sizes;
-        uint32_t config_size = file_metadata.config_size;
-
-        // Find the block the user wants
-            size_t sum = sizeof(uint32_t) * (3 + blocks + config_size); // Size of metadata
-            for (size_t i = 0; i < block && i < blocks; i++)
-                sum += block_sizes[i];
-
-            uint32_t size = static_cast<uint32_t>(values.size() * sizeof(float));
-
-            // Write a new block
-            if (block == blocks) {
-
-                // Write new block at end
-                file.seekp(sum, std::ios::beg);
-                file.write(reinterpret_cast<const char*>(values.data()), size);
-
-                // Append new block sizes entry
-                insert_bytes(location, file, (2 + block) * sizeof(uint32_t), 0, reinterpret_cast<const char*>(&size), sizeof(uint32_t));
-
-                // Increment blocks"
-                blocks++;
-                file.seekp(4, std::ios::beg);
-                file.write(reinterpret_cast<const char*>(&blocks), sizeof(uint32_t));
-            }
-
-            // Overwrite existing block
-            else if (block < blocks) {
-
-                insert_bytes(location, file, sum, block_sizes[block], reinterpret_cast<const char*>(values.data()), size);
-
-                // Overwrite "block sizes" entry
-                file.seekp(8 + block * sizeof(uint32_t), std::ios::beg);
-                file.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
-            }
-
-            // Invalid block index
-            else {
-                std::cerr << "write_block: invalid block index\n";
-            }
-
-        file.flush();
-        file.close();
-    }
-    void new_bin(char* location) {
-        std::ofstream create(location, std::ios::binary | std::ios::trunc);
-        if (!create.is_open()) {std::cerr << "new_bin: cannot create \"" << location << "\"\n";return;}
-
-        std::fstream file(location, std::ios::in | std::ios::out | std::ios::binary);
-
-        if (!file.is_open()) {std::cerr << "new_bin: failed to reopen \"" << location << "\"\n";return;}
-
-        // vrsion
-        uint32_t version = 1;
-        file.write(reinterpret_cast<char*>(&version), sizeof(version));
-        if (!file) {std::cerr << "new_bin: error writing version\n";return;}
-
-        // Blocks
-        uint32_t blocks = 0;
-        file.write(reinterpret_cast<char*>(&blocks), sizeof(blocks));
-        if (!file) {std::cerr << "new_bin: error writing blocks\n";return;}
-    }
-
 // Neural network helper functions
     float initialize_weight(uint32_t fan_in, std::mt19937 &gen) {
         return std::normal_distribution<float>(0.0f, std::sqrt(2.0f / fan_in))(gen);
@@ -289,8 +75,238 @@
         return 0.0f;
     }
 
-// Public neural network functions
+// Public functions
     namespace NeuralNetwork {
+        void insert_bytes(char* location, std::fstream& file, std::streampos position, size_t old_data_size, const char* data, size_t data_size) {
+            if (!file.is_open()) {
+                std::cerr << "insert_bytes: file not open\n";
+                return;
+            }
+
+            // Move to end to get file size
+            file.seekg(0, std::ios::end);
+            std::streampos sp = file.tellg();
+            if (sp == -1) {
+                std::cerr << "insert_bytes: tellg failed\n";
+                return;
+            }
+
+            size_t file_size = static_cast<size_t>(sp);
+
+            if (position < 0 || static_cast<size_t>(position) + old_data_size > file_size) {
+                std::cerr << "insert_bytes: position + old_data_size exceeds file size\n";
+                return;
+            }
+
+            // Calculate tail size
+            size_t tail_size = file_size - (static_cast<size_t>(position) + old_data_size);
+
+            // Read tail if there is any
+            std::vector<char> tail;
+            if (tail_size > 0) {
+                tail.resize(tail_size);
+                file.seekg(position + static_cast<std::streamoff>(old_data_size), std::ios::beg);
+                file.read(tail.data(), static_cast<std::streamsize>(tail_size));
+                if (!file) {
+                    std::cerr << "insert_bytes: read tail failed\n";
+                    return;
+                }
+            }
+
+            // Write new data
+            file.seekp(position, std::ios::beg);
+            if (data_size > 0) {
+                file.write(data, static_cast<std::streamsize>(data_size));
+                if (!file) {
+                    std::cerr << "insert_bytes: write data failed\n";
+                    return;
+                }
+            }
+
+            // Write tail
+            if (tail_size > 0) {
+                file.write(tail.data(), static_cast<std::streamsize>(tail_size));
+                if (!file) {
+                    std::cerr << "insert_bytes: write tail failed\n";
+                    return;
+                }
+            }
+
+            // Resize file if new file is smaller or larger
+            size_t new_file_size = file_size - old_data_size + data_size;
+            if (new_file_size != file_size) {
+                file.flush();
+                std::error_code ec;
+                std::filesystem::resize_file(location, new_file_size, ec);
+                if (ec) {
+                    std::cerr << "insert_bytes: resize_file failed: " << ec.message() << '\n';
+                    return;
+                }
+            }
+
+            file.clear(); // Reset any flags
+            return;
+        }
+        NeuralNetwork::file_metadata read_metadata(std::fstream& file) {
+            if (!file.is_open()) {std::cerr << "read_metadata: failed to open provided file.\n";return {};}
+
+            file.seekg(0, std::ios::beg);
+
+            // Version
+            uint32_t version;
+            file.read(reinterpret_cast<char*>(&version), sizeof(version));
+            if (!file) {std::cerr << "read_metadata: error getting version metadata.\n";return NeuralNetwork::file_metadata{};}
+
+            // Blocks
+            uint32_t blocks;
+            file.read(reinterpret_cast<char*>(&blocks), sizeof(blocks));
+            if (!file) {std::cerr << "read_metadata: error getting blocks metadata.\n";return NeuralNetwork::file_metadata{};}
+
+            // Block sizes
+            std::vector<uint32_t> block_sizes(blocks);
+            file.read(reinterpret_cast<char*>(block_sizes.data()), blocks * sizeof(uint32_t));
+            if (!file) {std::cerr << "read_metadata: error getting block sizes metadata.\n";return NeuralNetwork::file_metadata{};}
+
+            // Config size
+            uint32_t config_size;
+            file.read(reinterpret_cast<char*>(&config_size), sizeof(config_size));
+            if (!file) {std::cerr << "read_metadata: error getting config_size metadata.\n";return NeuralNetwork::file_metadata{};}
+
+            // Config data
+            std::vector<uint32_t> config_data(config_size);
+            file.read(reinterpret_cast<char*>(config_data.data()), config_size * sizeof(uint32_t));
+            if (!file) {std::cerr << "read_metadata: error getting config_data metadata.\n";return NeuralNetwork::file_metadata{};}
+
+            return NeuralNetwork::file_metadata{version, blocks, block_sizes, config_size, config_data};
+        }
+        void write_config(char* location, std::fstream& file, std::vector<uint32_t> config_data) {
+            if (!file.is_open()) {std::cerr << "write_config: failed to open provided file.\n";return;}
+
+            NeuralNetwork::file_metadata metadata = read_metadata(file);
+            size_t sum = sizeof(uint32_t) * (2 + metadata.blocks); // Size of metadata minus config_size and config_data in bytes
+
+            // Change config_size
+            uint32_t value = static_cast<uint32_t>(config_data.size());
+            file.seekg(sum);
+            file.write(reinterpret_cast<const char*>(&value), sizeof(uint32_t));
+
+            // Change config_data
+            insert_bytes(location, file, sum + sizeof(uint32_t), sizeof(uint32_t) * metadata.config_size, reinterpret_cast<const char*>(config_data.data()), sizeof(uint32_t) * config_data.size());
+
+            file.seekg(0, std::ios::beg);
+        }
+        std::vector<float> read_block(char* location, uint32_t block) {
+            // Open file
+            std::fstream file(location, std::ios::in | std::ios::binary);
+            if (!file.is_open()) {std::cerr << "read_block: failed to open \"" << location << "\".\n";return {};}
+                
+            NeuralNetwork::file_metadata file_metadata = read_metadata(file);
+            uint32_t version = file_metadata.version;
+            uint32_t blocks = file_metadata.blocks;
+            std::vector<uint32_t> block_sizes = file_metadata.block_sizes;
+            uint32_t config_size = file_metadata.config_size;
+
+            // Find the block the user wants
+                if (block >= blocks) {std::cerr << "Block # requested is invalid.\n";return {};}
+
+                // Sum the size of all blocks before the one the user wants
+                size_t sum = sizeof(uint32_t) * (3 + blocks + config_size); // Size of metadata
+                for (size_t i = 0; i < block; i++) { sum += block_sizes[i]; }
+
+                // Read the block
+                size_t bytes = static_cast<size_t>(block_sizes[block]);
+                if (bytes % sizeof(float) != 0) {std::cerr << "read_block: block size not aligned with type\n";return {};}
+
+                std::vector<float> wanted_block(bytes / sizeof(float));
+
+                file.seekg(sum, std::ios::beg);
+                if (!file) {std::cerr << "read_block: seekg failed for block " << block << "\n";return {};}
+
+                file.read(reinterpret_cast<char*>(wanted_block.data()), bytes);
+                if (!file) {std::cerr << "read_block: error reading block " << block << "\n";return {};}
+
+            return wanted_block;
+        }
+        void write_block(char* location, uint32_t block, std::vector<float> values) {
+            // Open file
+            std::fstream file(location, std::ios::in | std::ios::out | std::ios::binary);
+            if (!file.is_open()) {std::cerr << "write_block: failed to open \"" << location << "\".\n";return;}
+                
+            NeuralNetwork::file_metadata file_metadata = read_metadata(file);
+            uint32_t version = file_metadata.version;
+            uint32_t blocks = file_metadata.blocks;
+            std::vector<uint32_t> block_sizes = file_metadata.block_sizes;
+            uint32_t config_size = file_metadata.config_size;
+
+            // Find the block the user wants
+                size_t sum = sizeof(uint32_t) * (3 + blocks + config_size); // Size of metadata
+                for (size_t i = 0; i < block && i < blocks; i++)
+                    sum += block_sizes[i];
+
+                uint32_t size = static_cast<uint32_t>(values.size() * sizeof(float));
+
+                // Write a new block
+                if (block == blocks) {
+
+                    // Write new block at end
+                    file.seekp(sum, std::ios::beg);
+                    file.write(reinterpret_cast<const char*>(values.data()), size);
+
+                    // Append new block sizes entry
+                    insert_bytes(location, file, (2 + block) * sizeof(uint32_t), 0, reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+
+                    // Increment blocks"
+                    blocks++;
+                    file.seekp(4, std::ios::beg);
+                    file.write(reinterpret_cast<const char*>(&blocks), sizeof(uint32_t));
+                }
+
+                // Overwrite existing block
+                else if (block < blocks) {
+
+                    insert_bytes(location, file, sum, block_sizes[block], reinterpret_cast<const char*>(values.data()), size);
+
+                    // Overwrite "block sizes" entry
+                    file.seekp(8 + block * sizeof(uint32_t), std::ios::beg);
+                    file.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+                }
+
+                // Invalid block index
+                else {
+                    std::cerr << "write_block: invalid block index\n";
+                }
+
+            file.flush();
+            file.close();
+        }
+        void new_bin(char* location) {
+            std::ofstream create(location, std::ios::binary | std::ios::trunc);
+            if (!create.is_open()) {std::cerr << "new_bin: cannot create \"" << location << "\"\n";return;}
+
+            std::fstream file(location, std::ios::in | std::ios::out | std::ios::binary);
+
+            if (!file.is_open()) {std::cerr << "new_bin: failed to reopen \"" << location << "\"\n";return;}
+
+            // version
+            uint32_t version = 1;
+            file.write(reinterpret_cast<char*>(&version), sizeof(version));
+            if (!file) {std::cerr << "new_bin: error writing version\n";return;}
+
+            // blocks
+            uint32_t blocks = 0;
+            file.write(reinterpret_cast<char*>(&blocks), sizeof(blocks));
+            if (!file) {std::cerr << "new_bin: error writing blocks\n";return;}
+
+            // config size
+            uint32_t config_size = 0;
+            file.write(reinterpret_cast<char*>(&config_size), sizeof(config_size));
+            if (!file) {std::cerr << "new_bin: error writing config_size\n";return;}
+        }
+
+
+
+
+
         network create_network(std::vector<uint32_t> layers) {
             size_t length = layers.size();
             if (length < 2) {std::cerr << "create_network: provided network is too small\n";return NeuralNetwork::network{};}
@@ -364,6 +380,7 @@
                 new_network.layers[layer].weights = read_block(location, pointer);
                 pointer++;
             }
+            return new_network;
         }
         output forward_pass(NeuralNetwork::network neural_network, std::vector<float> inputs) {
             if (neural_network.layers.empty()) {

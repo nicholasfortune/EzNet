@@ -21,6 +21,7 @@
 #include <string>
 #include <chrono>
 #include "../include/eznet.h"
+#include "../tests/main.h"
 
 // Constants
         const char* version = "1.0.0";
@@ -75,6 +76,8 @@
                 println("        Displays list of commands");
                 println("    version");
                 println("        Displays program version");
+                println("    test");
+                println("        Runs all available tests");
                 println("");
                 println("Main Commands");
                 println("    create \"file-name\" <number of neurons per layer>");
@@ -136,6 +139,8 @@ int main(int argc, char** argv) {
                         NeuralNetwork::network new_network = NeuralNetwork::create_network(layer_sizes);
                         NeuralNetwork::save_network(arguments[1], new_network);
                 }
+        } else if (cmd == "test") {
+                all_tests();
         } else if (cmd == "forward") {
 
         } else if (cmd == "output") {
