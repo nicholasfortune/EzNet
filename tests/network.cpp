@@ -5,7 +5,8 @@
 #include "../tests/network.h"
 #include "../include/eznet.h"
 
-//char "network_test_file.binary"[] = "network_test_file.binary";
+namespace fs = std::filesystem;
+static char test_file_name[] = "network_test_file.binary";
 
 bool create_network() {
     std::vector<uint32_t> layers = {2, 3, 2};
@@ -49,10 +50,10 @@ bool save_network() {
     std::vector<uint32_t> layers = {2, 3, 2};
     NeuralNetwork::network new_network = NeuralNetwork::create_network(layers);
 
-    std::fstream file("network_test_file.binary", std::ios::in | std::ios::out | std::ios::binary);
-    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m network: save_network: failed to open \"" << "network_test_file.binary" << "\".\n";return false;}
+    std::fstream file(test_file_name, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m network: save_network: failed to open \"" << test_file_name << "\".\n";return false;}
 
-     
+    NeuralNetwork::save_network(test_file_name, new_network);
 
     file.close();
     return true;
@@ -67,9 +68,17 @@ bool network() {
         success = false;
     } else {
         std::cout << "\033[32m[ PASSED ]\033[0m network: create_network()\n";
+        
     }
-    if (!success) {std::cout << "\033[33m[ NOTICE ]\033[0m network: \033[1msome tests failed, check the binary test file \"" << 404 << "\" at the working directory.\033[0m" << std::endl;}
-    else {}
+
+    if (!success) {std::cout << "\033[33m[ NOTICE ]\033[0m binary: \033[1msome tests failed, check the binary test file \"" << test_file_name << "\" at the working directory.\033[0m" << std::endl;}
+    else {
+        try {
+            fs::remove(test_file_name);
+        } catch (const fs::filesystem_error& e) {
+            std::cerr << "\033[31m[ ERROR ]\033[0m binary: failed to delete file, error message: \"" << e.what() << "\"" << std::endl;
+        }
+    }
 
     return success;
 }

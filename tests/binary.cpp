@@ -23,24 +23,24 @@
 #include "../include/eznet.h"
  
 namespace fs = std::filesystem;
-char testfilename[] = "binary_test_file.binary";
+static char test_file_name[] = "binary_test_file.binary";
 
 bool insert_bytes() {
     // Destroy any previous file (if any, not really critical)
     try {
-        fs::remove(testfilename);
+        fs::remove(test_file_name);
     } catch (const fs::filesystem_error& e) {
         std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: failed to delete previous file, error message: \"" << e.what() << "\"" << std::endl;
     }
 
     // Create a new binary to test
-    NeuralNetwork::new_bin(testfilename);
+    NeuralNetwork::new_bin(test_file_name);
 
-    std::fstream file(testfilename, std::ios::in | std::ios::out | std::ios::binary);
-    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: failed to open \"" << testfilename << "\".\n";return false;}
+    std::fstream file(test_file_name, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: failed to open \"" << test_file_name << "\".\n";return false;}
 
     std::vector<uint32_t> data = {1, 6, 4};
-    NeuralNetwork::insert_bytes(testfilename, file, 0, 0, reinterpret_cast<char*>(data.data()), data.size() * sizeof(uint32_t));
+    NeuralNetwork::insert_bytes(test_file_name, file, 0, 0, reinterpret_cast<char*>(data.data()), data.size() * sizeof(uint32_t));
 
 
     // Overwrite 4 bytes with 8 bytes
@@ -48,7 +48,7 @@ bool insert_bytes() {
     std::vector<uint32_t> expected_overwrite_results = {1, 2, 3, 4};
     std::vector<uint32_t> overwrite_results = {};
     overwrite_results.resize(expected_overwrite_results.size());
-    NeuralNetwork::insert_bytes(testfilename, file, sizeof(uint32_t), sizeof(uint32_t), reinterpret_cast<char*>(to_overwrite.data()), to_overwrite.size() * sizeof(uint32_t));
+    NeuralNetwork::insert_bytes(test_file_name, file, sizeof(uint32_t), sizeof(uint32_t), reinterpret_cast<char*>(to_overwrite.data()), to_overwrite.size() * sizeof(uint32_t));
     file.seekg(0, std::ios::beg);
     file.read(reinterpret_cast<char*>(overwrite_results.data()), expected_overwrite_results.size() * sizeof(uint32_t));
     if (overwrite_results != expected_overwrite_results) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: overwrite test results did not match expectations\n";return false;}
@@ -58,7 +58,7 @@ bool insert_bytes() {
     std::vector<uint32_t> expected_append_results = {1, 2, 3, 4, 5};
     std::vector<uint32_t> append_results = {};
     append_results.resize(expected_append_results.size());
-    NeuralNetwork::insert_bytes(testfilename, file, 4 * sizeof(uint32_t), 0, reinterpret_cast<char*>(to_append.data()), to_append.size() * sizeof(uint32_t));
+    NeuralNetwork::insert_bytes(test_file_name, file, 4 * sizeof(uint32_t), 0, reinterpret_cast<char*>(to_append.data()), to_append.size() * sizeof(uint32_t));
     file.seekg(0, std::ios::beg);
     file.read(reinterpret_cast<char*>(append_results.data()), expected_append_results.size() * sizeof(uint32_t));
     if (append_results != expected_append_results) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: append test results did not match expectations\n";return false;}
@@ -68,7 +68,7 @@ bool insert_bytes() {
     std::vector<uint32_t> expected_smaller_overwrite_results = {1, 6, 7};
     std::vector<uint32_t> smaller_overwrite_results = {};
     smaller_overwrite_results.resize(expected_smaller_overwrite_results.size());
-    NeuralNetwork::insert_bytes(testfilename, file, sizeof(uint32_t), 4 * sizeof(uint32_t), reinterpret_cast<char*>(to_smaller_overwrite.data()), to_smaller_overwrite.size() * sizeof(uint32_t));
+    NeuralNetwork::insert_bytes(test_file_name, file, sizeof(uint32_t), 4 * sizeof(uint32_t), reinterpret_cast<char*>(to_smaller_overwrite.data()), to_smaller_overwrite.size() * sizeof(uint32_t));
     file.seekg(0, std::ios::beg);
     file.read(reinterpret_cast<char*>(smaller_overwrite_results.data()), expected_smaller_overwrite_results.size() * sizeof(uint32_t));
     if (smaller_overwrite_results != expected_smaller_overwrite_results) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: smaller overwrite test results did not match expectations\n";return false;}
@@ -78,7 +78,7 @@ bool insert_bytes() {
     std::vector<uint32_t> expected_insert_results = {1, 2, 3, 4, 5, 6, 7};
     std::vector<uint32_t> insert_results = {};
     insert_results.resize(expected_insert_results.size());
-    NeuralNetwork::insert_bytes(testfilename, file, sizeof(uint32_t), 0, reinterpret_cast<char*>(to_insert.data()), to_insert.size() * sizeof(uint32_t));
+    NeuralNetwork::insert_bytes(test_file_name, file, sizeof(uint32_t), 0, reinterpret_cast<char*>(to_insert.data()), to_insert.size() * sizeof(uint32_t));
     file.seekg(0, std::ios::beg);
     file.read(reinterpret_cast<char*>(insert_results.data()), expected_insert_results.size() * sizeof(uint32_t));
     if (insert_results != expected_insert_results) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: insert_bytes: insert test results did not match expectations\n";return false;}
@@ -90,21 +90,21 @@ bool insert_bytes() {
 bool new_bin() {
     // Destroy any previous file (if any, not really critical)
     try {
-        fs::remove(testfilename);
+        fs::remove(test_file_name);
     } catch (const fs::filesystem_error& e) {
         std::cerr << "\033[31m[ ERROR ]\033[0m binary: new_bin: failed to delete previous file, error message: \"" << e.what() << "\"" << std::endl;
     }
 
     // Create a new binary to test
-    NeuralNetwork::new_bin(testfilename);
+    NeuralNetwork::new_bin(test_file_name);
 
     /* Expected structure of a blank file:
     version > 0 (I don't wanna update this after each new binary version lol)
     blocks == 0
     config_size == 0
     */
-    std::fstream file(testfilename, std::ios::in | std::ios::out | std::ios::binary);
-    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: new_bin: failed to open \"" << testfilename << "\".\n";return false;}
+    std::fstream file(test_file_name, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: new_bin: failed to open \"" << test_file_name << "\".\n";return false;}
 
     uint32_t version = 0;
     uint32_t blocks = 0;
@@ -128,13 +128,13 @@ bool new_bin() {
 }
 
 bool write_block() {
-    std::fstream file(testfilename, std::ios::in | std::ios::out | std::ios::binary);
-    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: write_block: failed to open \"" << testfilename << "\".\n";return false;}
+    std::fstream file(test_file_name, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: write_block: failed to open \"" << test_file_name << "\".\n";return false;}
 
     std::vector<float> block0 = {999.0f};
-    NeuralNetwork::write_block(testfilename, 0, block0);
+    NeuralNetwork::write_block(test_file_name, 0, block0);
     std::vector<float> block1 = {4.0f, 2.0f, 1.4142135f};
-    NeuralNetwork::write_block(testfilename, 1, block1);
+    NeuralNetwork::write_block(test_file_name, 1, block1);
 
     /* Expected structure after these modifications:
     version: doesn't matter
@@ -203,8 +203,8 @@ bool read_block() {
     std::vector<float> block0 = {999.0f};
     std::vector<float> block1 = {4.0f, 2.0f, 1.4142135f};
 
-    std::vector<float> block0_read = NeuralNetwork::read_block(testfilename, 0);
-    std::vector<float> block1_read = NeuralNetwork::read_block(testfilename, 1);
+    std::vector<float> block0_read = NeuralNetwork::read_block(test_file_name, 0);
+    std::vector<float> block1_read = NeuralNetwork::read_block(test_file_name, 1);
 
     if (block0 != block0_read) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: read_block: what was expected from block 0 and the block 0 read from the binary did not match.\n";return false;}
     if (block1 != block1_read) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: read_block: what was expected from block 1 and the block 1 read from the binary did not match.\n";return false;}
@@ -212,8 +212,8 @@ bool read_block() {
 }
 
 bool read_metadata() {
-    std::fstream file(testfilename, std::ios::in | std::ios::out | std::ios::binary);
-    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: read_metadata: failed to open \"" << testfilename << "\".\n";return false;}
+    std::fstream file(test_file_name, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: read_metadata: failed to open \"" << test_file_name << "\".\n";return false;}
 
     // add one 4 byte config
     uint32_t blocks = 0;
@@ -231,8 +231,8 @@ bool read_metadata() {
 
         size_t sum = sizeof(uint32_t) * (3 + blocks);
         uint32_t one = 1;
-        NeuralNetwork::insert_bytes(testfilename, file, sum, sizeof(uint32_t), reinterpret_cast<char*>(&one), sizeof(uint32_t)); // config_size
-        NeuralNetwork::insert_bytes(testfilename, file, sum + sizeof(uint32_t), 0, reinterpret_cast<char*>(&one), sizeof(uint32_t)); // config_data
+        NeuralNetwork::insert_bytes(test_file_name, file, sum, sizeof(uint32_t), reinterpret_cast<char*>(&one), sizeof(uint32_t)); // config_size
+        NeuralNetwork::insert_bytes(test_file_name, file, sum + sizeof(uint32_t), 0, reinterpret_cast<char*>(&one), sizeof(uint32_t)); // config_data
 
 
     NeuralNetwork::file_metadata metadata = NeuralNetwork::read_metadata(file);
@@ -276,12 +276,12 @@ bool read_metadata() {
 }
 
 bool write_config() {
-    std::fstream file(testfilename, std::ios::in | std::ios::out | std::ios::binary);
-    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: write_config: failed to open \"" << testfilename << "\".\n";return false;}
+    std::fstream file(test_file_name, std::ios::in | std::ios::out | std::ios::binary);
+    if (!file.is_open()) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: write_config: failed to open \"" << test_file_name << "\".\n";return false;}
 
     std::vector<uint32_t> data = {1111};
 
-    NeuralNetwork::write_config(testfilename, file, data);
+    NeuralNetwork::write_config(test_file_name, file, data);
 
     NeuralNetwork::file_metadata metadata = NeuralNetwork::read_metadata(file);
 
@@ -289,7 +289,7 @@ bool write_config() {
     if (metadata.config_data != data) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: write_config: config_data metadata mismatch\n";return false;}
 
     std::vector<float> block0 = {999.0f};
-    std::vector<float> block0_read = NeuralNetwork::read_block(testfilename, 0);
+    std::vector<float> block0_read = NeuralNetwork::read_block(test_file_name, 0);
     if (block0 != block0_read) {std::cerr << "\033[31m[ ERROR ]\033[0m binary: write_config: block 1 mismatch; config data is likely taking up more bytes than expected.\n";return false;}
 
     file.close();
@@ -349,10 +349,10 @@ bool binary() {
             }
         }
     }
-    if (!success) {std::cout << "\033[33m[ NOTICE ]\033[0m binary: \033[1msome tests failed, check the binary test file \"" << testfilename << "\" at the working directory.\033[0m" << std::endl;}
+    if (!success) {std::cout << "\033[33m[ NOTICE ]\033[0m binary: \033[1msome tests failed, check the binary test file \"" << test_file_name << "\" at the working directory.\033[0m" << std::endl;}
     else {
         try {
-            fs::remove(testfilename);
+            fs::remove(test_file_name);
         } catch (const fs::filesystem_error& e) {
             std::cerr << "\033[31m[ ERROR ]\033[0m binary: failed to delete file, error message: \"" << e.what() << "\"" << std::endl;
         }

@@ -313,24 +313,25 @@
 
             std::mt19937 gen(std::random_device{}());
             NeuralNetwork::network new_network;
+            new_network.config_data.resize(1);
             new_network.config_data[0] = layers[0]; // Set input size
 
             std::vector<NeuralNetwork::layer> new_layers;
             
             if (layers[1] == 0) {std::cerr << "create_network: layer 0 has zero neurons\n";return NeuralNetwork::network{};}
-            for (size_t i = 1; i < length - 1; i++) {
-                size_t i_plus_one = i + 1;
-                if (layers[i_plus_one] == 0) {std::cerr << "create_network: layer " << i_plus_one << " has zero neurons\n";return NeuralNetwork::network{};}
+            for (size_t i = 1; i < length; i++) {
+                size_t i_minus_one = i - 1;
+                if (i_minus_one < 0) {i_minus_one = layers[0];} // Set to input size
                 NeuralNetwork::layer hidden_layer;
-                hidden_layer.input_size = layers[i];
-                hidden_layer.output_size = layers[i_plus_one];
-                size_t weights = (size_t)layers[i] * (size_t)layers[i_plus_one];
+                hidden_layer.input_size = layers[i_minus_one];
+                hidden_layer.output_size = layers[i];
+                size_t weights = (size_t)layers[i_minus_one] * (size_t)layers[i];
                 hidden_layer.weights.resize(weights);
 
                 for (size_t v = 0; v < weights; v++) {
-                    hidden_layer.weights[v] = initialize_weight(layers[i], gen);
+                    hidden_layer.weights[v] = initialize_weight(layers[i_minus_one], gen);
                 }
-                hidden_layer.biases.resize(layers[i_plus_one], 0.01f);
+                hidden_layer.biases.resize(layers[i], 0.01f);
                 new_layers.push_back(hidden_layer);
             }
 
